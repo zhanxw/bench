@@ -5,6 +5,7 @@ def usage():
     print("%s [-i interval] [-o outputFile] commands" % sys.argv[0] )
     print
 
+from time import time, sleep
 class MemoryUsage:
     def __init__(self, t = None, trace = False):
         self.vms = 0 # virtual memory, how many mem are claimed
@@ -13,7 +14,6 @@ class MemoryUsage:
         if t:
             self.lastTime = t
         else:
-            from time import time
             self.lastTime = time()
         self.maxVms = -1
         self.maxRss = -1
@@ -50,14 +50,12 @@ class CPUUsage:
         self.utime = 0 # user time
         self.stime = 0 # system time
         self.rtime = 0
-        from time import time
         self.initTime = time()
     def add(self, utime, stime):
         self.utime = utime
         self.stime = stime
         #print "cpu time", self.utime, self.stime
     def finish(self):
-        from time import time
         self.rtime = time() - self.initTime
     def getTime(self):
         #print "cpu time", self.utime, self.stime
@@ -67,7 +65,7 @@ class CPUUsage:
 ## interval is sampling interval
 ## q is queue to store result
 def monitorProcess(p, interval, q):
-    pid = p.pid
+    ##pid = p.pid
     ## print "monitor pid = ", pid
     res = [p.pid, p.getcwd(), p.cmdline, CPUUsage(), MemoryUsage(p.create_time)]
     from time import time, sleep
@@ -84,11 +82,30 @@ def monitorProcess(p, interval, q):
     res[-2].finish()
     q.put(res)
 
+def runCommand(cmd):
+    #print 'cmd = ', cmd
+    ret = os.system(cmd)
+    retcode = ret >> 8
+    signalcode = ret & 0xff
+    if signalcode != 0:
+	sys.exit( signalcode + 128 )
+    else:
+	sys.exit( retcode )
+
 def startMainProcess(command, q):
-    p = psutil.Popen(command, shell = True)
+    proc = Process(target = runCommand, args = (' '.join(command),))
+    proc.start()
+    
+    # cmd = "'" + ' '.join(command) + "'"
+    # cmd = cmd.replace('\\', '\\\\')
+    # cmd = ['/bin/sh', '-c', cmd]
+    # print "psutil popen: ", cmd
+    p = psutil.Process(proc.pid)
+    # p = psutil.Popen(cmd)
     res = [p.pid, p.getcwd(), p.cmdline, None]
     while p.is_running():
         res[-1] = os.wait4(p.pid, 0)
+	#print "wait4", p.pid
         ##print 'waitPid', res[-1]
     q.put(res)
     return
@@ -107,21 +124,21 @@ if __name__ == '__main__':
             usage()
             sys.exit(0)
 
-        args[0] = args[0]
-            
-	##commands = args
+        if len(args) == 0:
+	    print >> sys.stderr, "No command(s) given, exiting..."
+	    sys.exit(1)
+	## print 'args = ', args
+	## commands = args
     except:
         usage()
 	raise
         sys.exit(1)
 
     ## store results
-    result = {} # key: pid, val: [cmd, (time, mem), (time, mem), ... (time, mem), (resources)]
-    waitPidResult = None
+    result = {} # key: pid, val: [cmd, command, cpu_usage, mem_usage]
+    ## waitPidResult = None
 
     import psutil
-    from time import time, sleep
-    from itertools import chain
     from multiprocessing import Process, Queue
     q = Queue()
     
@@ -143,7 +160,7 @@ if __name__ == '__main__':
 		isRunning = True
 
 		psList = parent.get_children(recursive=True)
-		## print "len(child ps)", len(psList), [p.pid for p in psList]
+		#print "len(child ps)", len(psList), [p.pid for p in psList]
 		for p in psList:
 		    if p.pid not in result:
                         proc = Process(target=monitorProcess, args = (p, interval, q))
@@ -158,23 +175,21 @@ if __name__ == '__main__':
 	if not isRunning:
 	    break
 
-        # intentional block the process until main process finished
-        # waitPidResult = os.wait4(p.pid, 0)
-        # print 'waitPid', waitPidResult
-
 	sleep(interval)
 
     ## outputs
-    ##         
     HEADER = ['PID', 'Prog', 'UsrTime', 'SysTime', 'RealTime',
               'MaxVms', 'MaxRss', 'AvgVms', 'AvgRss', 'Path',
               'Command']
 
-    # for k, v in result.iteritems():
-    #     print k,
-    #     print v.is_alive(),
-    #     print v
+    pythonPid = os.getpid()
+    ## print "pythonPid = ", pythonPid
+    for k, v in result.iteritems():
+	if v.is_alive() and v.pid != pythonPid:
+	    v.join()
+	    
     res = {} # key: pid, val: values including PID
+    accuratePid = set()
     while not q.empty():
         a = q.get()
     	##print "q=", a
@@ -198,13 +213,20 @@ if __name__ == '__main__':
             r[2] = a[-1][-1].ru_utime
             r[3] = a[-1][-1].ru_stime
             r[6] = a[-1][-1].ru_maxrss
+	    accuratePid.add(r[0])
         r[9] = a[1]
         r[10] = '"%s"' % ' '.join(a[2])
         res[pid] = r
+    #print res
     print >> outFile, '\t'.join(HEADER)
-    for k, v in res.iteritems():
-        # import pdb
-        # pdb.set_trace()
+    highPriKeys = [k for k in res.keys() if k in accuratePid]
+    lowPriKeys = [k for k in res.keys() if k not in accuratePid]
+    for k in highPriKeys:
+	v = res[k]
+        print >> outFile, '\t'.join(map(str, v))
+    ## print '*' * 50
+    for k in lowPriKeys:
+	v = res[k]
         print >> outFile, '\t'.join(map(str, v))
 
     outFile.close()
