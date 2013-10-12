@@ -107,20 +107,9 @@ def monitorProcess(p, q, interval, trace):
     except NoSuchProcess:
 	pass
 
-# 
-def runCommand(cmd):
-    #print 'cmd = ', cmd
-    ret = os.system(cmd)
-    retcode = ret >> 8
-    signalcode = ret & 0xff
-    if signalcode != 0:
-	sys.exit( signalcode + 128 )
-    else:
-	sys.exit( retcode )
-
 # start a process 
 def startMainProcess(useShell, command, q):
-    ##proc = Process(target = runCommand, args = (' '.join(command),))
+    initTime = time()
     if useShell:
 	proc = Process(target = os.system, args = (' '.join(command),))
 	proc.start()
@@ -129,22 +118,15 @@ def startMainProcess(useShell, command, q):
     else:
 	p = psutil.Popen(command, shell = False)
 
-    # cmd = "'" + ' '.join(command) + "'"
-    # cmd = cmd.replace('\\', '\\\\')
-    # cmd = ['/bin/sh', '-c', cmd]
-    # print "psutil popen: ", cmd
-    # while True:
-    # 	mainProc = psutil.Process(proc.pid)
-    # 	if len(mainProc.get_children()) == 0:
-    # 	    continue
-    # 	break
-    
-    #p =  mainProc.get_children()[0]
-    # p = psutil.Popen(cmd)
-    res = [p.pid, p.getcwd(), p.cmdline, None]
+    res = [p.pid, p.getcwd(), p.cmdline, None, None, None]
     while p.is_running():
         #print "wait4", p.pid
 	res[-1] = os.wait4(p.pid, 0)
+	if useShell:
+	    res[-2] = proc.exitcode
+	else:
+	    res[-2] = p.returncode
+	res[-3] = time() - initTime
         ##print 'waitPid', res[-1]
     q.put(res)
     return
@@ -156,7 +138,8 @@ def usage():
     print(" -o outputFile: output benchmark to file instead of stderr")
     print(" -s: use /bin/sh -c 'cmd' to execute")
     print(" -t: output trace of benchmarking metrics (default: stderr; use -o to change)")
-    print(" -g: output a PNG graph showing cpu and memory usage (need matplotlib, automatically enable trace)")
+    print(" -g: output a PNG graph showing cpu and memory usage (need matplotlib and numpy)")
+    print(" -q: quiet mode, not output summary line")
     print
 
 if __name__ == '__main__':
@@ -165,7 +148,10 @@ if __name__ == '__main__':
 	optlist, args = getopt.getopt(sys.argv[1:], 'i:o:hstg')
 	optlist = dict(optlist)
         interval = float(optlist.get('-i', 0.1))
-
+	if interval <= 0:
+	    print >> sys.stderr, "Sampling interval should be larger than zero, but [ %s ] given" % optlist.get('-i')
+	    sys.exit(1)
+	    
         if '-o' in optlist:
             outFile = open(optlist['-o'], 'wt')
         else:
@@ -173,7 +159,9 @@ if __name__ == '__main__':
 	    
 	useShell = '-s' in optlist
 	outGraph = '-g' in optlist
-	trace = '-t' in optlist or outGraph
+	outTrace = '-t' in optlist
+	trace = outGraph or outTrace
+	quietMode = '-q' in optlist
 	
         if '-h' in optlist:
             usage()
@@ -191,7 +179,6 @@ if __name__ == '__main__':
 
     ## store results
     result = {} # key: pid, val: [cmd, command, cpu_usage, mem_usage]
-    ## waitPidResult = None
 
     import psutil
     from multiprocessing import Process, Queue
@@ -240,7 +227,8 @@ if __name__ == '__main__':
     ## print "pythonPid = ", pythonPid
     for k, v in result.iteritems():
 	if v.is_alive() and v.pid != pythonPid:
-	    v.join()
+	    v.join(interval)
+	    v.terminate()
 	    
     res = {} # key: pid, val: values including PID
     cpuTraceOutput = []
@@ -248,11 +236,6 @@ if __name__ == '__main__':
     accuratePid = set()
     while not q.empty():
         a = q.get()
-    	##print "q=", a
-        # if isinstance(a[-1], MemoryUsage):
-        #     print "avg= ", a[-1].getAverage()
-        #     print "max = ", a[-1].getMax()
-        #     print "cpu time = ", a[-2].getTime()
         pid = a[0]
         if pid in res:
             r = res[pid]
@@ -265,6 +248,8 @@ if __name__ == '__main__':
 	    r[1] = progName
 	except:
 	    pass
+        r[9] = a[1]
+        r[10] = '"%s"' % ' '.join(a[2])
         if isinstance(a[-1], MemoryUsage):
             r[2], r[3], r[4] = ['%.3f' % i for i in a[-2].getTime()]
             r[5], r[6] = a[-1].getMax()
@@ -283,9 +268,10 @@ if __name__ == '__main__':
             r[2] = a[-1][-1].ru_utime
             r[3] = a[-1][-1].ru_stime
             r[6] = a[-1][-1].ru_maxrss
+
 	    accuratePid.add(r[0])
-        r[9] = a[1]
-        r[10] = '"%s"' % ' '.join(a[2])
+	    summaryLine = "%.2fu %.2fs %.2fr (rss)%dkb %d %s" % (r[2], r[3], a[-1][-3], int(r[6]/1024), a[-1][-2], ' '.join(a[2]))
+	    ## print summaryLine
         res[pid] = r
     #print res
     print >> outFile, '\t'.join(HEADER)
@@ -294,7 +280,6 @@ if __name__ == '__main__':
     for k in highPriKeys:
 	v = res[k]
         print >> outFile, '\t'.join(map(str, v))
-    ## print '*' * 50
     for k in lowPriKeys:
 	v = res[k]
         print >> outFile, '\t'.join(map(str, v))
@@ -303,10 +288,9 @@ if __name__ == '__main__':
 	outFile.close()
 
     CPU_TRACE_HEADER = ['PID', 'Prog', 'UsrTime', 'SysTime', 'RealTime']
-
     MEM_TRACE_HEADER = ['PID', 'Prog', 'Time', 'VMS', 'RSS']
 
-    if trace:
+    if outTrace:
 	## output cpu trace
 	if outFile == sys.stderr:
 	    traceFile = outFile
@@ -365,6 +349,7 @@ if __name__ == '__main__':
 
 	subplot(1, 2, 2)
 	data = groupby(memTraceOutput, key = lambda x: '%s (%d)' % (x[1], x[0]))
+	memUnit = "b"
 	for d in data:
 	    legendKey = d[0]
 	    a = [list(i[2:][0]) for i in d[1]]
@@ -385,7 +370,6 @@ if __name__ == '__main__':
 		v[2, :] /= 1024
 		memUnit = "Gb"
 		
-	    
 	    step(v[0,:], v[1,:], label = "VMS " + legendKey)
 	    step(v[0,:], v[2,:], label = "RSS " + legendKey)
 	xlabel("Real Time (s)")
@@ -393,7 +377,9 @@ if __name__ == '__main__':
 	legend()
 
 	if outFile == sys.stderr:
-	    
 	    savefig("benchmark" + time.strftime("_%m%d_%H%M"),dpi=72)
 	else:
 	    savefig(optlist['-o'] + '.png', dpi = 72)
+
+    if not quietMode:
+	print >> sys.stderr, summaryLine
