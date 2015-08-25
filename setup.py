@@ -1,10 +1,9 @@
-# chardet's setup.py
 from distutils.core import setup
 setup(
     name = "bench",
     scripts = ['scripts/monitor.py'],
     requires = ['psutil'],
-    version = "1.9",
+    version = "2.0",
     description = "Benchmark resources usage",
     author = "Xiaowei Zhan",
     author_email = "zhanxw@gmail.com",
@@ -45,64 +44,53 @@ Examples
 ::
 
     > monitor.py sleep 2
-    PID	Prog	Usr	Sys	Real	MaxVms	MaxRss	AvgVms	AvgRss	Path	Command
-    22727	sleep	0.000	0.000	2.009	7581696	368640	7581696.0	368640.0	/home/zhanxw/mycode/bench	"sleep 2"
-    22725	python	0.000	0.000	2.210	78827520	7168000	75189278.1936	6866516.95138	/home/zhanxw/mycode/bench	"/home/zhanxw/python27/bin/python /home/zhanxw/bin/monitor.py sleep 2"
-    0.00u 0.00s 2.01r (rss)1644kb 0 sleep 2
+    pid     ppid    cwd     cmd     utime   stime   rtime   maxRss  maxVms  avgRss  avgVms
+    99627   99626   /home/zhanxw/mycode/bench       sleep 2 0.0     0.0     1.8569419384    835584  6066176 835584  6066176
 
 - Example 2: complex shell commands with samping interval equaing 0.5 second
 
 ::
     
-    > monitor.py -s -i 0.5 'sleep 2 & sleep 4 & seq 1000000 >/dev/null & wait'
-    PID	Prog	Usr	Sys	Real	MaxVms	MaxRss	AvgVms	AvgRss	Path	Command
-    30848	sh	0.000	0.000	4.007	12881920	1404928	12881920.0	1404928.0	/home/zhanxw/mycode/bench	"/bin/sh -c sleep 2 & sleep 4 & seq 1000000 >/dev/null & wait"
-    30849	sleep	0.000	0.000	1.503	7581696	368640	7581696.0	368640.0	/home/zhanxw/mycode/bench	"sleep 2"
-    30850	sleep	0.000	0.000	3.506	7581696	368640	7581696.0	368640.0	/home/zhanxw/mycode/bench	"sleep 4"
-    30846	python	0.000	0.000	4.508	155717632	7516160	86151689.6624	7192939.64679	/home/zhanxw/mycode/bench	"/home/zhanxw/python27/bin/python /home/zhanxw/bin/monitor.py -s -i 0.5 sleep 2 & sleep 4 & seq 1000000 >/dev/null & wait"
-    0.60u 0.00s 4.01r (rss)1613kb 0 /bin/sh -c sleep 2 & sleep 4 & seq 1000000 >/dev/null & wait
 
-- Example 3: generate benmarking metrics and graphs to external file
+    > monitor.py sh -c 'sleep 2 & sleep 4 & seq 1000000 >/dev/null & wait'
+    pid     ppid    cwd     cmd     utime   stime   rtime   maxRss  maxVms  avgRss  avgVms
+    100673  100672  /home/zhanxw/mycode/bench       sh -c sleep 2 & sleep 4 & seq 1000000 >/dev/null & wait 0.0     0.0     3.6947889328    897024  4558848 897024  4558848
+    100674  100673  /home/zhanxw/mycode/bench       sleep 2 0.0     0.0     1.68072605133   684032  6066176 684032  6066176
+    100675  100673  /home/zhanxw/mycode/bench       sleep 4 0.0     0.0     3.86425089836   700416  6066176 700416  6066176
+
+- Example 3: generate benmarking metrics to external file
 
 ::
-    > monitor.py -t -o burnCpu.mon -g ./burnCpu
-    6.22u 0.01s 6.25r (rss)1565kb 0 ./burnCpu
+    > monitor.py -t -o burnCpu ./burnCpu
+    [1440476547.641628, 104060, 104059, '/home/zhanxw/mycode/bench/src', ['./burnCpu'], pcputimes(user=0.0, system=0.0), pmem(rss=1425408, vms=12984320)]
+    [1440476547.79734, 104060, 104059, '/home/zhanxw/mycode/bench/src', ['./burnCpu'], pcputimes(user=0.15, system=0.0), pmem(rss=1425408, vms=12984320)]
+    [1440476547.960703, 104060, 104059, '/home/zhanxw/mycode/bench/src', ['./burnCpu'], pcputimes(user=0.32, system=0.0), pmem(rss=1425408, vms=12984320)]
+    [1440476548.127665, 104060, 104059, '/home/zhanxw/mycode/bench/src', ['./burnCpu'], pcputimes(user=0.48, system=0.0), pmem(rss=1425408, vms=12984320)]
+    ...
     
-Result are stored in *burnCpu.mon*, *burnCpu.mon.trace.cpu*, *burnCpu.mon.trace.mem* and *burnCpu.mon.png*.
+Additional result are stored in *burnCpu.csv*, *burnCpu.trace.csv* in the Comma-separated format (CSV).
 
-*burnCpu.mon* content
-
-::
-
-    PID	Prog	UsrTime	SysTime	RealTime	MaxVms	MaxRss	AvgVms	AvgRss	Path	Command
-    29900	burnCpu	7.480	0.000	7.532	12730368	839680	12730368.0	839680.0	/home/zhanxw/mycode/bench	"./burnCpu"
-    29898	python	0.000	0.000	7.732	78807040	7118848	76893692.4593	7018742.03273	/home/zhanxw/mycode/bench	"/home/zhanxw/python27/bin/python /home/zhanxw/bin/monitor.py -t -o burnCpu.mon -g ./burnCpu"
-
-*burnCpu.mon.trace.cpu* content
+*burnCpu.csv* content
 
 ::
 
-    PID	Prog	UsrTime	SysTime	RealTime
-    29900	burnCpu	0.06	0.0	1381423522.56
-    29900	burnCpu	0.16	0.0	1381423522.66
-    29900	burnCpu	0.26	0.0	1381423522.76
-    29900	burnCpu	0.36	0.0	1381423522.86
-    29900	burnCpu	0.46	0.0	1381423522.96
-    29900	burnCpu	0.56	0.0	1381423523.06
+    pid,ppid,cwd,cmd,utime,stime,rtime,maxRss,maxVms,avgRss,avgVms
+    104060,104059,/home/zhanxw/mycode/bench/src,./burnCpu,5.88,0.0,5.87858390808,1425408,12984320,1425408,12984320
+
+*burnCpu.trace.csv* content
+
+::
+
+    pid,ppid,cwd,cmd,utime,stime,rtime,rss,vms
+    104060,104059,/home/zhanxw/mycode/bench/src,./burnCpu,0.0,0.0,0.0,1425408,12984320
+    104060,104059,/home/zhanxw/mycode/bench/src,./burnCpu,0.15,0.0,0.155711889267,1425408,12984320
+    104060,104059,/home/zhanxw/mycode/bench/src,./burnCpu,0.32,0.0,0.319074869156,1425408,12984320
+    104060,104059,/home/zhanxw/mycode/bench/src,./burnCpu,0.48,0.0,0.486037015915,1425408,12984320
+    104060,104059,/home/zhanxw/mycode/bench/src,./burnCpu,0.65,0.0,0.653388023376,1425408,12984320
     ...
 
-*burnCpu.mon.trace.mem* content
 
-::
-
-    PID	Prog	Time	VMS	RSS
-    29900	burnCpu	1381423522.56	12730368	839680
-    29900	burnCpu	1381423522.66	12730368	839680
-    29900	burnCpu	1381423522.76	12730368	839680
-    29900	burnCpu	1381423522.86	12730368	839680
-    29900	burnCpu	1381423522.96	12730368	839680
-
-*burnCpu.mon.png* graph
+By using the trace output file, *burnCpu.trace.csv*, you can draw benchmarking graphs, such as: 
 
 .. image:: http://zhanxw.com/bench/burnCpu.mon.png
 
@@ -110,18 +98,18 @@ Result are stored in *burnCpu.mon*, *burnCpu.mon.trace.cpu*, *burnCpu.mon.trace.
 NOTE
 ----
 
- Implementation details: python will spawn monitor processes to collect runtime resources usage details. There are two types of
- monitor process: (1) a main monitor process will spawn user specified command, call waitpid() until the spawned process finishes;
+ Implementation details: python will spawn a child process to collect runtime resources usage details. 
+ There are two types of  monitor process: (1) a main monitor process will spawn user specified command, call waitpid() until the spawned process finishes;
  (2) other montiro process will monitor the command process and its child processes. Both monitor process will collect resource usages
  and put them in a process safe queue, in which usage statistics are calculuated or saved.
+ Since version 2.0, only the second monitoring methods are used for coding simplicity.
+ The monitor process will check CPU and memory metrics at a time interval.
 
- Option *-s* will use shell (/bin/sh) to execute commands. It's a convenient feature but comes with some shell exploit hazards.
+ The deprecated option *-s* use shell (/bin/sh) to execute commands. It's a convenient feature but comes with some shell exploit hazards. You can use "sh -c" if needed.
  
- bench requires psutil_ to collect basic benchmarking metrics, and requires numpy_ and matplotlib_ to generate benchmark graphs.
+ bench requires psutil_ to collect basic benchmarking metrics, and suggests numpy_ and matplotlib_ to generate benchmark graphs on users' own efforts.
 
 .. _psutil: https://code.google.com/p/psutil/
-.. _numpy: http://www.numpy.org/
-.. _matplotlib: http://matplotlib.org/
 
 Contact
 -------

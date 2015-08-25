@@ -16,71 +16,59 @@ Examples
 <!-- -->
 
     > monitor.py sleep 2
-    PID Prog    UsrTime SysTime RealTime    MaxVms  MaxRss  AvgVms  AvgRss  Path    Command
-    26183   sleep   0.000   0.000   2.010   7581696 368640  7581696.0   368640.0    /home/zhanxw/anno/paper/benchmark.vcf   "sleep 2"
-    26181   python  0.000   0.000   2.109   78802944    7118848 75075881.6664   6807216.41318   /home/zhanxw/anno/paper/benchmark.vcf   "/home/zhanxw/python27/bin/python /home/zhanxw/bin/monitor.py sleep 2"
+    pid     ppid    cwd     cmd     utime   stime   rtime   maxRss  maxVms  avgRss  avgVms
+    99627   99626   /home/zhanxw/mycode/bench       sleep 2 0.0     0.0     1.8569419384    835584  6066176 835584  6066176
 
 -   Example 2: complex shell commands with samping interval equaing 0.5
     second
 
 <!-- -->
 
-    > monitor.py -s -i 0.5 'sleep 2 & sleep 4 & seq 1000000 >/dev/null & wait'
-    PID Prog    UsrTime SysTime RealTime    MaxVms  MaxRss  AvgVms  AvgRss  Path    Command
-    26561   python  0.000   0.000   4.007   77750272    6758400 77750272.0  6758400.0   /home/zhanxw/anno/paper/benchmark.vcf   "/home/zhanxw/python27/bin/python /home/zhanxw/bin/monitor.py -s -i 0.5 sleep 2 & sleep 4 & seq 1000000 >/dev/null & wait"
-    26562   sh  0.000   0.000   3.506   12881920    1413120 12881920.0  1413120.0   /home/zhanxw/anno/paper/benchmark.vcf   "sh -c sleep 2 & sleep 4 & seq 1000000 >/dev/null & wait"
-    26563   sleep   0.000   0.000   1.503   7581696 368640  7581696.0   368640.0    /home/zhanxw/anno/paper/benchmark.vcf   "sleep 2"
-    26564   sleep   0.000   0.000   3.506   7581696 368640  7581696.0   368640.0    /home/zhanxw/anno/paper/benchmark.vcf   "sleep 4"
-    26565   seq 0.580   0.010   0.501   7602176 634880  7602176.0   634880.0    /home/zhanxw/anno/paper/benchmark.vcf   "seq 1000000"
-    26559   python  0.000   0.000   4.507   77754368    7045120 77750843.0692   7045120.0   /home/zhanxw/anno/paper/benchmark.vcf   "/home/zhanxw/python27/bin/python /home/zhanxw/bin/monitor.py -s -i 0.5 sleep 2 & sleep 4 & seq 1000000 >/dev/null & wait"
+    > monitor.py sh -c 'sleep 2 & sleep 4 & seq 1000000 >/dev/null & wait'
+    pid     ppid    cwd     cmd     utime   stime   rtime   maxRss  maxVms  avgRss  avgVms
+    100673  100672  /home/zhanxw/mycode/bench       sh -c sleep 2 & sleep 4 & seq 1000000 >/dev/null & wait 0.0     0.0     3.6947889328    897024  4558848 897024  4558848
+    100674  100673  /home/zhanxw/mycode/bench       sleep 2 0.0     0.0     1.68072605133   684032  6066176 684032  6066176
+    100675  100673  /home/zhanxw/mycode/bench       sleep 4 0.0     0.0     3.86425089836   700416  6066176 700416  6066176
 
--   Example 3: generate benmarking metrics and graphs to external file
+-   Example 3: generate benmarking metrics to external file
 
-::
-  ~ \> monitor.py -t -o burnCpu.mon -g ./burnCpu
+The small program, burnCpu, will keep CPU running for several seconds. Its source code is under src/.
 
-Result are stored in *burnCpu.mon*, *burnCpu.mon.trace.cpu*,
-*burnCpu.mon.trace.mem* and *burnCpu.mon.png*.
-
-*burnCpu.mon* content
-
-    PID Prog    UsrTime SysTime RealTime    MaxVms  MaxRss  AvgVms  AvgRss  Path    Command
-    29900   burnCpu 7.480   0.000   7.532   12730368    839680  12730368.0  839680.0    /home/zhanxw/mycode/bench   "./burnCpu"
-    29898   python  0.000   0.000   7.732   78807040    7118848 76893692.4593   7018742.03273   /home/zhanxw/mycode/bench   "/home/zhanxw/python27/bin/python /home/zhanxw/bin/monitor.py -t -o burnCpu.mon -g ./burnCpu"
-
-*burnCpu.mon.trace.cpu* content
-
-    PID Prog    UsrTime SysTime RealTime
-    29900   burnCpu 0.06    0.0 1381423522.56
-    29900   burnCpu 0.16    0.0 1381423522.66
-    29900   burnCpu 0.26    0.0 1381423522.76
-    29900   burnCpu 0.36    0.0 1381423522.86
-    29900   burnCpu 0.46    0.0 1381423522.96
-    29900   burnCpu 0.56    0.0 1381423523.06
+    > monitor.py -t -o burnCpu ./burnCpu
+    [1440476547.641628, 104060, 104059, '/home/zhanxw/mycode/bench/src', ['./burnCpu'], pcputimes(user=0.0, system=0.0), pmem(rss=1425408, vms=12984320)]
+    [1440476547.79734, 104060, 104059, '/home/zhanxw/mycode/bench/src', ['./burnCpu'], pcputimes(user=0.15, system=0.0), pmem(rss=1425408, vms=12984320)]
+    [1440476547.960703, 104060, 104059, '/home/zhanxw/mycode/bench/src', ['./burnCpu'], pcputimes(user=0.32, system=0.0), pmem(rss=1425408, vms=12984320)]
+    [1440476548.127665, 104060, 104059, '/home/zhanxw/mycode/bench/src', ['./burnCpu'], pcputimes(user=0.48, system=0.0), pmem(rss=1425408, vms=12984320)]
     ...
 
-*burnCpu.mon.trace.mem* content
+Additional result are stored in *burnCpu.csv*, *burnCpu.trace.csv* in the Comma-separated format (CSV).
 
-    PID Prog    Time    VMS RSS
-    29900   burnCpu 1381423522.56   12730368    839680
-    29900   burnCpu 1381423522.66   12730368    839680
-    29900   burnCpu 1381423522.76   12730368    839680
-    29900   burnCpu 1381423522.86   12730368    839680
-    29900   burnCpu 1381423522.96   12730368    839680
+*burnCpu.csv* content
 
-*burnCpu.mon.png* graph
+    pid,ppid,cwd,cmd,utime,stime,rtime,maxRss,maxVms,avgRss,avgVms
+    104060,104059,/home/zhanxw/mycode/bench/src,./burnCpu,5.88,0.0,5.87858390808,1425408,12984320,1425408,12984320
+
+*burnCpu.trace.csv* content
+
+    pid,ppid,cwd,cmd,utime,stime,rtime,rss,vms
+    104060,104059,/home/zhanxw/mycode/bench/src,./burnCpu,0.0,0.0,0.0,1425408,12984320
+    104060,104059,/home/zhanxw/mycode/bench/src,./burnCpu,0.15,0.0,0.155711889267,1425408,12984320
+    104060,104059,/home/zhanxw/mycode/bench/src,./burnCpu,0.32,0.0,0.319074869156,1425408,12984320
+    104060,104059,/home/zhanxw/mycode/bench/src,./burnCpu,0.48,0.0,0.486037015915,1425408,12984320
+    104060,104059,/home/zhanxw/mycode/bench/src,./burnCpu,0.65,0.0,0.653388023376,1425408,12984320
+    ...
+
+
+By using the trace output file, *burnCpu.trace.csv*, you can draw benchmarking graphs, such as: 
 
 ![image](http://zhanxw.com/bench/burnCpu.mon.png)
 NOTE
 ====
 
-> Shell (/bin/sh) are used to execute commands. It's a convenient
-> feature with some shell exploit hazard.
+> Shell (/bin/sh) can be used to execute commands. You can use "sh -c 'command arg1 arg2 ... '".
 >
-> bench requires [psutil](https://code.google.com/p/psutil/) to collect
-> basic benchmarking metrics, and requires
-> [numpy](http://www.numpy.org/) and
-> [matplotlib](http://matplotlib.org/) to generate benchmark graphs.
+> bench requires [psutil](https://pypi.python.org/pypi/psutil) to collect
+> basic benchmarking metrics. We used psutil version 3.1.1 in development.
 
 Contact
 =======
