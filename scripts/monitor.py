@@ -19,10 +19,10 @@ def unlist(a):
     return ret
 
 # d is is pandas.DataFrame
-def printTable(d, sep = '\t'):
-    print sep.join(d.columns)
+def printTable(d, sep = '\t', outFile = sys.stderr):
+    print >> outFile, sep.join(d.columns)
     for l in d.iterrows():
-        print sep.join([str(i) for i in l[1]])
+        print >> outFile, sep.join([str(i) for i in l[1]])
 
 def usage():
     print("Usage: ")
@@ -121,7 +121,7 @@ if __name__ == '__main__':
                     None
                 ]
             if outTrace:
-                print val
+                print >> sys.stderr, val
             if val[1] != None:
                 result.append(val)
 
