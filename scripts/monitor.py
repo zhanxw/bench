@@ -171,21 +171,23 @@ if __name__ == '__main__':
     result = [] # time, pid, cwd, cmd, cpu_times, mem_info
 
     # gather metrics while process/sub-process is still running.
-    while True:
-        # record process at one snapshot
-        needToWait = False        
-        queue = deque()
-        mainProc.poll() 
-        queue.append(mainProc)
-        while len(queue) > 0:
-            print "len(queue) = ", len(queue), queue
-            p = queue.popleft()
+    mainProc.poll()  ## need to call poll() so is_running() can work
+    activeSet = set()   ##
+    active.add(mainProc.pid)
+    while activeSet:
+        ## put all processes to the active queuee
+        newActiveSet = set()
+        for p in activeSet:
+            if p in newActiveSet: continue
+            children = p.children()
+            for c in children:
+                if c.is_running():
+                    newActiveSet.add(c)
+        activeSet |= newActiveSet
 
-            if not p.is_running():
-                continue
-            needToWait = True
-            # print (p), p.is_running()
-            # append metrics
+        ## examine each active proc
+        ## remove inactive proc
+        for p in activeSet:
             try:
                 val = [
                     time.time() - startTime,
@@ -210,20 +212,16 @@ if __name__ == '__main__':
                 print >> sys.stderr, val
             if val[1] != None:
                 result.append(val)
-
-            if intervalScaling and len(result) % 1000 == 0:
-                interval = intervalScaling
-                intervalScaling *= 2
                 
-            # append children
-            children = p.children()
-            for c in children:
-                if c.is_running():
-                    queue.append(c)
-            time.sleep(interval)
+            if not p.is_running():
+                activeSet.del(p)
 
-        if not needToWait:
-            break
+        ## automatically increase check interval to save memory
+        if intervalScaling and len(result) % 1000 == 0:
+            interval = intervalScaling
+            intervalScaling *= 2
+        ## wait a bit
+        time.sleep(interval)
     
     # Summarize results
     df = pd.DataFrame.from_items([('pid', [i[1] for i in result]),
