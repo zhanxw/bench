@@ -171,22 +171,26 @@ if __name__ == '__main__':
     result = [] # time, pid, cwd, cmd, cpu_times, mem_info
 
     # gather metrics while process/sub-process is still running.
-    mainProc.poll()  ## need to call poll() so is_running() can work
     activeSet = set()   ##
-    active.add(mainProc.pid)
+    activeSet.add(mainProc)
     while activeSet:
         ## put all processes to the active queuee
         newActiveSet = set()
+        mainProc.poll()  ## need to call poll() so is_running() can work
         for p in activeSet:
             if p in newActiveSet: continue
-            children = p.children()
-            for c in children:
-                if c.is_running():
-                    newActiveSet.add(c)
+            try:
+                children = p.children()
+                for c in children:
+                    if c.is_running():
+                        newActiveSet.add(c)
+            except psutil.NoSuchProcess:
+                continue
         activeSet |= newActiveSet
 
         ## examine each active proc
         ## remove inactive proc
+        toRemoveSet = set()
         for p in activeSet:
             try:
                 val = [
@@ -197,6 +201,16 @@ if __name__ == '__main__':
                     p.cmdline(),
                     p.cpu_times(),
                     p.memory_info()
+                ]
+            except psutil.NoSuchProcess:
+                val = [
+                    time.time() - startTime,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None
                 ]
             except psutil.AccessDenied:
                 val = [
@@ -214,7 +228,8 @@ if __name__ == '__main__':
                 result.append(val)
                 
             if not p.is_running():
-                activeSet.del(p)
+                toRemoveSet.add(p)
+        activeSet -= toRemoveSet
 
         ## automatically increase check interval to save memory
         if intervalScaling and len(result) % 1000 == 0:
@@ -249,8 +264,8 @@ if __name__ == '__main__':
         return x
     dOut = df.groupby('pid').apply(f)
     dOut = dOut.drop_duplicates()
-    # dOut = pd.concat([dfUniq, dfMax, dfMean], axis = 1)
-    # print dOut
+    print df
+    print dOut
     if outFile == sys.stderr:
         if not quietMode:
             printTable(dOut)
