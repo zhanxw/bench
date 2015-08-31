@@ -2,8 +2,8 @@ from distutils.core import setup
 setup(
     name = "bench",
     scripts = ['scripts/monitor.py'],
-    requires = ['psutil'],
-    version = "2.5",
+    requires = ['psutil', 'pandas'],
+    version = "2.6",
     description = "Benchmark resources usage",
     author = "Xiaowei Zhan",
     author_email = "zhanxw@gmail.com",
