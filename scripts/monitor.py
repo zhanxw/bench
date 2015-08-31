@@ -43,10 +43,13 @@ def calculateMean(timePoint, value):
 def draw(dRaw, dg, outFile):
     import matplotlib
     import matplotlib.pyplot as plt
-    fig = plt.figure(figsize = (18, 18))
+    fig = plt.figure(figsize = (15, 15))
+    ax = fig.add_subplot(3, 3, 1)
+    ## increase space between subplots
+    fig.subplots_adjust(wspace = .5, hspace = .5)
+    
     dg['prog'] = dg.apply(lambda x: x['cmd'].split()[0] + '(%d)' % x['pid'] ,axis = 1)
     dg.index = dg['prog']
-    ax = fig.add_subplot(3, 3, 1)
     dg[['utime']].plot(kind = 'barh', title = "User Time (s)", ax = ax)
     ax = fig.add_subplot(3, 3, 2)    
     dg[['stime']].plot(kind = 'barh', title = "System Time (s)", ax = ax)
@@ -263,9 +266,9 @@ if __name__ == '__main__':
         x['avgVms'] = calculateMean(tp, x['vms'])
         return x
     dOut = df.groupby('pid').apply(f)
-    dOut = dOut.drop_duplicates()
-    print df
-    print dOut
+    dOut = dOut.drop_duplicates(subset = 'pid')
+    # print df
+    # print dOut
     if outFile == sys.stderr:
         if not quietMode:
             printTable(dOut)
