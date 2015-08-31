@@ -29,7 +29,6 @@ def usage():
     print("%s [-i interval] [-o outputFile] [-s] [-t] [-g] [-q] commands" % sys.argv[0] )
     print(" -i interval: sampling interval")
     print(" -o outputFile: benchmark summary printed to 'outputFile' (default: stderr)")
-    #print(" -s: use /bin/sh -c 'cmd' to execute")
     print(" -t: output trace of benchmarking metrics (default: stderr; use -o to change)")
     print(" -g: output a PNG graph showing cpu and memory usage (need matplotlib and numpy)")
     print(" -q: quiet mode, do not output anything to the console")
@@ -80,6 +79,7 @@ if __name__ == '__main__':
     import psutil
     import time
     from collections import deque
+    startTime = time.time()
     mainProc = psutil.Popen(command, shell = False)
 
     result = [] # time, pid, cwd, cmd, cpu_times, mem_info
@@ -102,7 +102,7 @@ if __name__ == '__main__':
             # append metrics
             try:
                 val = [
-                    time.time(),
+                    time.time() - startTime,
                     p.pid,
                     p.ppid(),
                     p.cwd(),
@@ -112,7 +112,7 @@ if __name__ == '__main__':
                 ]
             except psutil.AccessDenied:
                 val = [
-                    time.time(),
+                    time.time() - startTime,
                     None,
                     None,
                     None,
@@ -139,15 +139,6 @@ if __name__ == '__main__':
         if not needToWait:
             break
     
-    # Clean up results
-    nResult = len(result)
-    startTime = 0
-    for i in xrange(nResult):
-        if i == 0:
-            startTime = result[i][0]
-        result[i][0] -= startTime
-        # print result[i]
-
     # Summarize results
     import pandas as pd
     df = pd.DataFrame.from_items([('pid', [i[1] for i in result]),
