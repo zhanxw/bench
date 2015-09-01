@@ -41,20 +41,35 @@ def calculateMean(timePoint, value):
     return avg
         
 def draw(dRaw, dg, outFile):
-    import matplotlib
-    import matplotlib.pyplot as plt
+    try:
+        import matplotlib
+        import matplotlib.pyplot as plt
+    except:
+        print >> sys.stderr, "Cannot import matplotlib, skipping generating graphs"
+        return
+    
+    plt.rc('legend', fontsize=6)
+    plt.rc('ytick', labelsize = 'small')
     fig = plt.figure(figsize = (15, 15))
     ax = fig.add_subplot(3, 3, 1)
     ## increase space between subplots
     fig.subplots_adjust(wspace = .5, hspace = .5)
-    
-    dg['prog'] = dg.apply(lambda x: x['cmd'].split()[0] + '(%d)' % x['pid'] ,axis = 1)
+
+    getProgName = lambda x: x.split()[0].split('/')[-1]
+    dg['prog'] = dg.apply(lambda x: getProgName(x['cmd']) + '(%d)' % x['pid'] ,axis = 1)
     dg.index = dg['prog']
     dg[['utime']].plot(kind = 'barh', title = "User Time (s)", ax = ax)
+    plt.ylabel('')
+    # plt.yticks(rotation = 45) # this does not produce nice looking graphs
+
     ax = fig.add_subplot(3, 3, 2)    
     dg[['stime']].plot(kind = 'barh', title = "System Time (s)", ax = ax)
+    plt.ylabel('')        
+
     ax = fig.add_subplot(3, 3, 3)    
     dg[['rtime']].plot(kind = 'barh', title = "Real Time (s)", ax = ax)
+    plt.ylabel('')
+
     def scaleUnit(x):
         if (x.max() > 1024 ** 3).all():
             return ( 1024 ** 3, "Gb")
@@ -67,28 +82,33 @@ def draw(dRaw, dg, outFile):
     dg[['maxRss']] = dg[['maxRss']] / rssScale[0]
     ax = fig.add_subplot(3, 3, 4)    
     dg[['maxRss']].plot(kind = 'barh', title = "Max RSS (" + rssScale[1]+")", ax = ax)
+    plt.ylabel('')
     
     dg[['avgRss']] = dg[['avgRss']] / rssScale[0]
     ax = fig.add_subplot(3, 3, 5)
     dg[['avgRss']].plot(kind = 'barh', title = "Avg RSS (" + rssScale[1]+")", ax = ax)
+    plt.ylabel('')
     
     vmsScale = scaleUnit(dRaw[['vms']])
     dg[['maxVms']] = dg[['maxVms']] / vmsScale[0]
     ax = fig.add_subplot(3, 3, 6)
     dg[['maxVms']].plot(kind = 'barh', title = "Max VMS (" + vmsScale[1]+")", ax = ax)
+    plt.ylabel('')
     
     dg[['avgVms']] = dg[['avgVms']] / vmsScale[0]
     ax = fig.add_subplot(3, 3, 7)
     dg[['avgVms']].plot(kind = 'barh', title = "Avg VMS (" + vmsScale[1]+")", ax = ax)
-    
+    plt.ylabel('')    
 
     def calculateYLimit(x, coef = 1.5):
         a, b = x.min(), x.max()
         c = (a + b) / 2
         d = c - a
+        if d == 0.0:
+            return (a - 1, b + 1)
         return (c - d * 1.5, c + d * 1.5)
         
-    dRaw['prog'] = dRaw.apply(lambda x: x['cmd'].split()[0] + '(%d)' % x['pid'] ,axis = 1)
+    dRaw['prog'] = dRaw.apply(lambda x: getProgName(x['cmd']) + '(%d)' % x['pid'] ,axis = 1)
     dRaw['rss'] = dRaw['rss'] / rssScale[0]
     ax = fig.add_subplot(3, 3, 8)        
     for k, v in dRaw.groupby('prog'):
@@ -162,12 +182,14 @@ if __name__ == '__main__':
         raise
         sys.exit(1)
 
-    import psutil
     import time
+    import psutil
     import numpy as np
     import pandas as pd
     
-    from collections import deque
+    if outTrace:
+        print >> sys.stderr, '\t'.join(['pid', 'ppid', 'utime', 'stime', 'rtime', 'rss', 'vms', 'cwd', 'cmd'])
+        
     startTime = time.time()
     mainProc = psutil.Popen(command, shell = False)
 
@@ -200,22 +222,12 @@ if __name__ == '__main__':
                     time.time() - startTime,
                     p.pid,
                     p.ppid(),
-                    p.cwd(),
-                    p.cmdline(),
                     p.cpu_times(),
-                    p.memory_info()
+                    p.memory_info(),
+                    p.cwd(),
+                    p.cmdline()
                 ]
-            except psutil.NoSuchProcess:
-                val = [
-                    time.time() - startTime,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None
-                ]
-            except psutil.AccessDenied:
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
                 val = [
                     time.time() - startTime,
                     None,
@@ -226,7 +238,11 @@ if __name__ == '__main__':
                     None
                 ]
             if outTrace:
-                print >> sys.stderr, val
+                if val[1] != None:
+                    print >> sys.stderr, '\t'.join(map(str, [val[1], val[2], val[3].user, val[3].system,val[0], val[4].rss, val[4].vms, val[5], ' '.join(val[6])]))
+                else:
+                    print >> sys.stderr, '\t'.join(map(str, [None, None, None, None, val[0], None, None, None,None]))
+                
             if val[1] != None:
                 result.append(val)
                 
@@ -243,14 +259,15 @@ if __name__ == '__main__':
     
     # Summarize results
     df = pd.DataFrame.from_items([('pid', [i[1] for i in result]),
-                       ('ppid', [i[2] for i in result]),
-                       ('cwd', [i[3] for i in result]),
-                       ('cmd', [' '.join(i[4]) for i in result]),
-                       ('utime', [i[5].user for i in result]),
-                       ('stime', [i[5].system for i in result]),
-                       ('rtime', [i[0] for i in result]),
-                       ('rss', [i[6].rss for i in result]),
-                       ('vms', [i[6].vms for i in result])])
+                                  ('ppid', [i[2] for i in result]),
+                                  ('utime', [i[3].user for i in result]),
+                                  ('stime', [i[3].system for i in result]),
+                                  ('rtime', [i[0] for i in result]),
+                                  ('rss', [i[4].rss for i in result]),
+                                  ('vms', [i[4].vms for i in result]),
+                                  ('cwd', [i[5] for i in result]),
+                                  ('cmd', [' '.join(i[6]) for i in result])
+    ])
     if outFile != sys.stderr:
         df.to_csv(outFile + ".trace.csv", index = False)
         
@@ -267,6 +284,7 @@ if __name__ == '__main__':
         return x
     dOut = df.groupby('pid').apply(f)
     dOut = dOut.drop_duplicates(subset = 'pid')
+    dOut = pd.concat([dOut.drop(['cwd','cmd'], axis = 1), dOut[['cwd','cmd']]], axis = 1)
     # print df
     # print dOut
     if outFile == sys.stderr:
