@@ -84,5 +84,5 @@ In this release, we used psutil 3.1.1, numpy 1.8.2, pandas 0.16.2 and matplotlib
 Contact
 =======
 
-For questions or commend, please visit bench github repo: [repo](https://github.com/zhanxw/bench)
-or email to: zhanxw[at]gmail.com
+For questions or commend, please visit bench github repo, [link](https://github.com/zhanxw/bench),
+or email to zhanxw[at]gmail.com .
