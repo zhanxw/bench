@@ -16,7 +16,7 @@ We showed several examples below. **Please note that all output are tabularized 
 -   Example 1: simple command.
 
 This will start the process *sleep* for 2 seconds. The tabular output below was from the actual command: `monitor.py sleep 2 2>&1 |column -t -s $'\t'`.
-If you simply run `monitor.py sleep 2`, you will get tab-deliminated output from standard error (stderr).
+If you simply run `monitor.py sleep 2`, you will get tab-deliminated outputs in standard error (stderr).
     
         $> monitor.py sleep 2
         pid     ppid    utime  stime  rtime         rss     vms      maxRss  maxVms   avgRss    avgVms     cwd                                cmd
@@ -38,8 +38,11 @@ This example will use shell to start 3 processes: `sleep 2`, `sleep 4` and `seq 
 -   Example 3: generate performance metrics to external file
 
 Here we used a small program, burnCpu. It will keep CPU running for several seconds. Its source code is under src/.
+
 The option `-t` will enable outputting traces. That means at several time stops, performance metrics of each processes will be outputted to the standard error as well as a separate comma-separated file, `$prefix.trace.csv`.
+
 The option `-g` will generate a graph which contains several sub-figures, including timings for each processes, memory consumption for each processes, and memory consumption over the processing running time.
+
 The option `-o` will specify the output prefix. The default value will be `bench`, meaning, you will get `bench.csv`. You can overwrite this value by using `-o` option.
     
         $> monitor.py -t -g -o burnCpu ./burnCpu
@@ -73,10 +76,10 @@ When `-g` optioned is specified, bench will generate several performance metrics
 Notes
 =====
 
-To benchmark a complex command or combinatinos of commands, you can use shell (sh or bash) . For example, you can use "sh -c 'command arg1 arg2 ... '" (see Example 2).
-Bench requires [psutil](https://pypi.python.org/pypi/psutil) to collect basic benchmarking metrics, and
+To benchmark a complex command or combinations of commands, you can use shell (sh or bash) . For example, you can use "sh -c 'command arg1 arg2 ... '" (see Example 2).
+Bench requires [psutil](https://pypi.python.org/pypi/psutil) to collect basic performance metrics, and
 requires [numpy](http://www.numpy.org/) and [pandas](http://pandas.pydata.org/) for statistical calculations.
-In the release, we used psutil 3.1.1, numpy 1.8.2, pandas 0.16.2 and matplotlib 1.4.3.
+In this release, we used psutil 3.1.1, numpy 1.8.2, pandas 0.16.2 and matplotlib 1.4.3.
 
 Contact
 =======
@@ -85,4 +88,4 @@ For questions or commend, please visit bench github repo:
 [repo](https://github.com/zhanxw/bench)
 
 or email to:
-Xiaowei Zhan <zhanxw[at]gmail.com
+Xiaowei Zhan <zhanxw[at]gmail.com>
