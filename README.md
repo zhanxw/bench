@@ -2,11 +2,11 @@ Monitor Process Resources Usage
 ===============================
 
 Bench aims to be a handy tool with these functions:
-    -   Monitor CPU time (user time, system time, real time)
-    -   Monitor memory usage (virtual memory usage, resident memory usage)
-    -   Output to TSV(tab-delimited files)
-    -   Output benchmark metrics
-    -   Visualize performance metrics (memory consumptions) over time
+-   Monitor CPU time (user time, system time, real time)
+-   Monitor memory usage (virtual memory usage, resident memory usage)
+-   Output to TSV(tab-delimited files)
+-   Output benchmark metrics
+-   Visualize performance metrics (memory consumptions) over time
 
 Examples
 ========
