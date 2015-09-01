@@ -3,7 +3,7 @@ setup(
     name = "bench",
     scripts = ['scripts/monitor.py'],
     requires = ['psutil', 'pandas', 'numpy'],
-    version = "2.7",
+    version = "2.8",
     description = "Benchmark resources usage",
     author = "Xiaowei Zhan",
     author_email = "zhanxw@gmail.com",
