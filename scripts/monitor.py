@@ -1,11 +1,15 @@
 #!/usr/bin/env python
 import sys, os
+from itertools import chain
 
-# d is is pandas.DataFrame
-def printTable(d, sep = '\t', outFile = sys.stderr):
-    print >> outFile, sep.join(d.columns)
-    for l in d.iterrows():
-        print >> outFile, sep.join([str(i) for i in l[1]])
+# d is a pandas.DataFrame
+def printTable(d, sep = '  ', outFile = sys.stderr):
+    cols = d.columns
+    col_widths = list(max(len(str(elem)) for elem in chain(d[col], [col])) for col in cols)
+    print >> sys.stderr, '   '.join('{value:>{width}}'.format(value=str(name), width=width) for name,width in zip(cols, col_widths))
+    for row in d.iterrows():
+        print >> sys.stderr, '   '.join('{value:>{width}}'.format(value=str(name), width=width) for name,width in zip(row[1], col_widths))
+
 
 def calculateMean(timePoint, value):
     #print "tp = ", timePoint
