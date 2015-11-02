@@ -1,28 +1,15 @@
 #!/usr/bin/env python
 import sys, os
-from time import time, sleep, strftime
+from itertools import chain
 
-def unlist(a):
-    """
-    a is list, and it may contain another list, this function unlist recusrively.
-    a = [1, 2, [3, 4], [5, [6]]]
-    unlist(a) == [1, 2, 3, 4, 5, 6]
-    """
-    ret = []
-    for i in a:
-        if isinstance(i, list):
-            ret.extend(unlist(i))
-        elif isinstance(i, tuple):
-            ret.extend(unlist(list(i)))
-        else:
-            ret.append(i)
-    return ret
+# d is a pandas.DataFrame
+def printTable(d, sep = '  ', outFile = sys.stderr):
+    cols = d.columns
+    col_widths = list(max(len(str(elem)) for elem in chain(d[col], [col])) for col in cols)
+    print >> sys.stderr, '   '.join('{value:>{width}}'.format(value=str(name), width=width) for name,width in zip(cols, col_widths))
+    for row in d.iterrows():
+        print >> sys.stderr, '   '.join('{value:>{width}}'.format(value=str(name), width=width) for name,width in zip(row[1], col_widths))
 
-# d is is pandas.DataFrame
-def printTable(d, sep = '\t', outFile = sys.stderr):
-    print >> outFile, sep.join(d.columns)
-    for l in d.iterrows():
-        print >> outFile, sep.join([str(i) for i in l[1]])
 
 def calculateMean(timePoint, value):
     #print "tp = ", timePoint
@@ -287,11 +274,10 @@ if __name__ == '__main__':
     dOut = pd.concat([dOut.drop(['cwd','cmd'], axis = 1), dOut[['cwd','cmd']]], axis = 1)
     # print df
     # print dOut
-    if outFile == sys.stderr:
-        if not quietMode:
-            printTable(dOut)
-    else:
+    if outFile != sys.stderr:
         dOut.to_csv(outFile + '.csv', index = False)
+    elif not quietMode:
+        printTable(dOut)
 
     if outGraph:
         if outFile == sys.stderr:
